@@ -14,6 +14,54 @@
 #define make_dir(p) mkdir(p, 0755)
 #endif
 
+#include <stdlib.h>
+
+// Panels that report a portrait mode but are mounted sideways: UC_ROTATE=90 or
+// 270 turns the picture upright (same value the launcher passes).
+static void present_rotated(SDL_Renderer *r, SDL_Texture *tex)
+{
+    const char *e = getenv("UC_ROTATE");
+    int rot = e ? atoi(e) : 0;
+    if (rot != 90 && rot != 180 && rot != 270) rot = 0;
+
+    if (rot) {
+        int w = 0, h = 0, lw, lh;
+        SDL_QueryTexture(tex, NULL, NULL, &w, &h);
+        SDL_Texture *tmp = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, w, h);
+        if (tmp) {
+            SDL_RenderSetLogicalSize(r, 0, 0);
+            SDL_SetRenderTarget(r, tmp);
+            SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+            SDL_RenderClear(r);
+            SDL_RenderCopy(r, tex, NULL, NULL);
+            SDL_SetRenderTarget(r, NULL);
+
+            lw = rot == 180 ? w : h;
+            lh = rot == 180 ? h : w;
+            SDL_RenderSetLogicalSize(r, lw, lh);
+            SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+            SDL_RenderClear(r);
+            SDL_FRect dst;
+            if (rot == 180) {
+                dst.x = 0.0f; dst.y = 0.0f; dst.w = (float)lw; dst.h = (float)lh;
+            } else {
+                // SDL turns the destination rect: hand it the unrotated size,
+                // centred, so the turned quad fills the screen exactly
+                dst.w = (float)lh;
+                dst.h = (float)lw;
+                dst.x = ((float)lw - dst.w) / 2.0f;
+                dst.y = ((float)lh - dst.h) / 2.0f;
+            }
+            SDL_RenderCopyExF(r, tmp, NULL, &dst, (double)rot, NULL, SDL_FLIP_NONE);
+            SDL_RenderPresent(r);
+            SDL_DestroyTexture(tmp);
+            return;
+        }
+    }
+    SDL_RenderClear(r);
+    SDL_RenderCopy(r, tex, NULL, NULL);
+    SDL_RenderPresent(r);
+}
 #define W 640
 #define H 480
 #define ICON 128
@@ -174,9 +222,7 @@ const game_t *picker_choose(const game_t *const *games, const bool *installed, i
         if (go && installed[sel]) { chosen = games[sel]; done = true; }
         draw(games, installed, sel, &prompt);
         SDL_UpdateTexture(tex, NULL, canvas, W * 4);
-        SDL_RenderClear(r);
-        SDL_RenderCopy(r, tex, NULL, NULL);
-        SDL_RenderPresent(r);
+        present_rotated(r, tex);
         SDL_Delay(10);
     }
     for (int i = 0; i < npads; i++) SDL_GameControllerClose(pads[i]);   // the game opens its own
@@ -263,9 +309,7 @@ bool picker_message(const char *title, const char *text)
             if (ev.type == SDL_CONTROLLERDEVICEADDED) SDL_GameControllerOpen(ev.cdevice.which);
             if (ev.type == SDL_CONTROLLERBUTTONDOWN) done = true;
         }
-        SDL_RenderClear(r);
-        SDL_RenderCopy(r, tex, NULL, NULL);
-        SDL_RenderPresent(r);
+        present_rotated(r, tex);
         SDL_Delay(30);
     }
     SDL_DestroyTexture(tex);
@@ -402,9 +446,7 @@ int picker_welcome(const game_t *const *games, const char *folder, const char *a
         else if (check) { status = "Still no game files there: check the folder and the file names"; status_rgb = 0xc05050; }
         welcome_draw(games, folder, alt, status, status_rgb);
         SDL_UpdateTexture(tex, NULL, wpx, WW * 4);
-        SDL_RenderClear(r);
-        SDL_RenderCopy(r, tex, NULL, NULL);
-        SDL_RenderPresent(r);
+        present_rotated(r, tex);
         SDL_Delay(30);
     }
     SDL_DestroyTexture(tex);

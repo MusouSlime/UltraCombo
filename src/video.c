@@ -16,7 +16,20 @@ static bool use_gl;
 /* ---------------------------------------------------------------- */
 
 static SDL_Renderer *ren;
-static SDL_Texture *ren_game, *ren_over;
+static SDL_Texture *ren_game, *ren_over, *ren_off;
+static int rot_setting = -1;
+
+// Panels that report a portrait mode but are mounted sideways: UC_ROTATE=90 or
+// 270 turns the picture upright (the same value the launcher passes in).
+static int rotation(void)
+{
+    if (rot_setting < 0) {
+        const char *e = getenv("UC_ROTATE");
+        int r = e ? atoi(e) : 0;
+        rot_setting = (r == 90 || r == 180 || r == 270) ? r : 0;
+    }
+    return rot_setting;
+}
 
 static bool sdl_init(void)
 {
@@ -26,17 +39,69 @@ static bool sdl_init(void)
     ren_game = SDL_CreateTexture(ren, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, 320, 240);
     ren_over = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 320, 240);
     SDL_SetTextureBlendMode(ren_over, SDL_BLENDMODE_BLEND);
-    return ren_game && ren_over;
+    if (rotation())
+        ren_off = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 320, 240);
+    if (rotation()) fprintf(stderr, "video: rotation %d deg, offscreen %s\n", rotation(), ren_off ? "ok" : "FAILED");
+    return ren_game && ren_over && (rotation() == 0 || ren_off);
 }
 
 static void sdl_present(const uint32_t *game, const uint32_t *overlay, int filter, int scale_mode)
 {
-    if (scale_mode == SCALE_STRETCH) SDL_RenderSetLogicalSize(ren, 0, 0);
-    else SDL_RenderSetLogicalSize(ren, 320, 240);
-    SDL_RenderSetIntegerScale(ren, scale_mode == SCALE_INTEGER);
+    int rot = rotation();
     SDL_SetTextureScaleMode(ren_game, filter == FILTER_SMOOTH ? SDL_ScaleModeLinear : SDL_ScaleModeNearest);
     SDL_UpdateTexture(ren_game, NULL, game, 320 * 4);
     SDL_UpdateTexture(ren_over, NULL, overlay, 320 * 4);
+
+    if (rot && ren_off) {
+        // compose the frame at 320x240, then turn it into the window
+        SDL_RenderSetLogicalSize(ren, 0, 0);
+        SDL_SetRenderTarget(ren, ren_off);
+        SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+        SDL_RenderClear(ren);
+        SDL_RenderCopy(ren, ren_game, NULL, NULL);
+        SDL_RenderCopy(ren, ren_over, NULL, NULL);
+        SDL_SetRenderTarget(ren, NULL);
+
+        if (scale_mode == SCALE_STRETCH) SDL_RenderSetLogicalSize(ren, 0, 0);
+        else SDL_RenderSetLogicalSize(ren, rot == 180 ? 320 : 240, rot == 180 ? 240 : 320);
+        SDL_RenderSetIntegerScale(ren, scale_mode == SCALE_INTEGER);
+        SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+        SDL_RenderClear(ren);
+        SDL_FRect dst;
+        {
+            int lw = 0, lh = 0;
+            SDL_RenderGetLogicalSize(ren, &lw, &lh);
+            if (!lw || !lh) SDL_GetRendererOutputSize(ren, &lw, &lh);
+            if (rot == 180) {
+                dst.x = 0.0f; dst.y = 0.0f; dst.w = (float)lw; dst.h = (float)lh;
+            } else {
+                // SDL turns the destination rect: give it the unrotated size,
+                // centred, so the turned quad fills the screen exactly
+                dst.w = (float)lh;
+                dst.h = (float)lw;
+                dst.x = ((float)lw - dst.w) / 2.0f;
+                dst.y = ((float)lh - dst.h) / 2.0f;
+            }
+        }
+        {
+            static int logged;
+            if (!logged) {
+                int ow = 0, oh = 0, lw = 0, lh = 0;
+                SDL_GetRendererOutputSize(ren, &ow, &oh);
+                SDL_RenderGetLogicalSize(ren, &lw, &lh);
+                fprintf(stderr, "video: rot=%d mode=%d out=%dx%d logical=%dx%d dst=%.0f,%.0f %.0fx%.0f\n",
+                        rot, scale_mode, ow, oh, lw, lh, dst.x, dst.y, dst.w, dst.h);
+                logged = 1;
+            }
+        }
+        SDL_RenderCopyExF(ren, ren_off, NULL, &dst, (double)rot, NULL, SDL_FLIP_NONE);
+        SDL_RenderPresent(ren);
+        return;
+    }
+
+    if (scale_mode == SCALE_STRETCH) SDL_RenderSetLogicalSize(ren, 0, 0);
+    else SDL_RenderSetLogicalSize(ren, 320, 240);
+    SDL_RenderSetIntegerScale(ren, scale_mode == SCALE_INTEGER);
     SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
     SDL_RenderClear(ren);
     SDL_RenderCopy(ren, ren_game, NULL, NULL);

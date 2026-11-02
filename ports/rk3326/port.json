@@ -1,0 +1,50 @@
+{
+    "version": 4,
+    "name": "UltraCombo.zip",
+    "items": [
+        "UltraCombo.sh",
+        "UltraCombo 2.sh",
+        "ultracombo"
+    ],
+    "items_opt": null,
+    "attr": {
+        "title": "UltraCombo (Killer Instinct 1 & 2)",
+        "porter": [
+            "kaleb"
+        ],
+        "desc": "Native ports of the Killer Instinct arcade games for RK3326 handhelds. The arcade code is translated to C and compiled for aarch64 (prebuilt modules included), with the Midway DCS sound board and IDE hard disk emulated. Two entries: Killer Instinct 1 (L1.5D/L1.4) and Killer Instinct 2 (L1.4). Save states, rewind, run-ahead, training and netplay are in the in-game menu.",
+        "desc_md": null,
+        "inst": "Game files (ROMs and CHDs) are included in ultracombo/run. To use your own dumps, put the ROMs of MAME's kinst/kinst2 sets and kinst.chd/kinst2.chd in ultracombo/run and delete ultracombo/cache so the translation is rebuilt.",
+        "inst_md": null,
+        "genres": [
+            "fighting"
+        ],
+        "image": {
+            "screenshot": "screenshot.png",
+            "covers": null,
+            "thumbnail": null,
+            "video": null
+        },
+        "rtr": false,
+        "exp": false,
+        "runtime": [],
+        "store": [],
+        "availability": "paid",
+        "reqs": [],
+        "arch": [
+            "aarch64"
+        ],
+        "min_glibc": "2.34"
+    },
+    "status": {
+        "source": "thefixinhixon/UltraCombo",
+        "md5": null,
+        "status": "Installed"
+    },
+    "files": {
+        "port.json": "port.json",
+        "UltraCombo.sh": "UltraCombo.sh",
+        "UltraCombo 2.sh": "UltraCombo 2.sh",
+        "ultracombo": "ultracombo"
+    }
+}

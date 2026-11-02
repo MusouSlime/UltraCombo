@@ -1,0 +1,19 @@
+Subject: [PATCH] KMSDRM: never request async page flips
+
+The Rockchip VOP (RK3326 and friends) reports DRM_CAP_ASYNC_PAGE_FLIP, but
+drmModePageFlip() with DRM_MODE_PAGE_FLIP_ASYNC returns EINVAL.  SDL then
+logs "Could not queue pageflip: -22" every frame, never waits for vblank and
+the program falls back to audio pacing, while SDL does a blocking modeset for
+every presented frame (measured ~1946 failures in 30 s on an RG351V).
+
+Only ask for async flips on hardware that actually accepts them.
+
+--- a/src/video/kmsdrm/SDL_kmsdrmvideo.c
++++ b/src/video/kmsdrm/SDL_kmsdrmvideo.c
+@@
+-    viddata->async_pageflip_support = async_pageflip ? SDL_TRUE : SDL_FALSE;
++    /* Rockchip VOP: the kernel advertises DRM_CAP_ASYNC_PAGE_FLIP but rejects
++       DRM_MODE_PAGE_FLIP_ASYNC with EINVAL, which makes every frame fall back
++       to a blocking modeset.  Never ask for async flips there. */
++    (void)async_pageflip;
++    viddata->async_pageflip_support = SDL_FALSE;

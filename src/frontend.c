@@ -178,6 +178,9 @@ static void draw_perf(uint32_t *ov)
         perf.emu_acc = 0;
         perf.t0 = now;
     }
+    if (getenv("UC_FPSLOG"))
+        fprintf(stderr, "perf: %.1f fps, emu %.2f ms, %.0f%% speed, audio %.0f ms\n",
+                perf.fps, perf.emu_ms, perf.emu_ms > 0 ? 100.0 * (1000.0 / FRAME_HZ) / perf.emu_ms : 0, queued_ms());
     if (!cfg.perf_overlay) return;
     char l1[48], l2[48];
     snprintf(l1, sizeof l1, "%.1f FPS  AUDIO %.0f MS", perf.fps, queued_ms());
