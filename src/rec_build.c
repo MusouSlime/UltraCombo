@@ -323,7 +323,7 @@ static bool build_with(const char *cc, bool zig, const char *src, const char *mo
 #else
         cmd_add(c, "-fPIC");
 #endif
-        cmd_add(c, "-O1");
+        cmd_add(c, "-O2");        // worth ~10-20% over -O1 on a Cortex-A35
         cmd_add(c, "-fvisibility=hidden");
         cmd_add(c, "-fno-stack-protector");
         cmd_add(c, "-DREC_MODULE");
